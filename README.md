@@ -1,21 +1,38 @@
 # anatomia
 
-Detecção de conteúdo sensível em imagens **por estrutura corporal**, não por cor de pele.
+Sensitive-content detection by **body structure**, not by skin colour.
 
-Detectores clássicos de nudez usam fração de pele em espaço de cor. Isso falha de um jeito previsível: quanto mais escura a pele, mais área é classificada como "pele", e mais falso positivo o sistema produz. O viés não é acidental — é a métrica.
+Classic nudity detectors measure skin fraction in a colour space. That fails in a predictable direction: the darker the skin, the more area gets classified as "skin", and the more false positives the system produces. The bias is not an accident of implementation — it is the metric.
 
-Esta biblioteca troca a métrica: mede **regiões anatômicas detectadas**, com caixa, classe e confiança.
+This library changes the metric: it reports **detected anatomical regions**, each with a box, a label and a confidence.
 
-## Duas regras que definem a API
+## Two rules that define the API
 
-**1. Devolve medida, nunca veredito.** A biblioteca diz "região `BUTTOCKS_EXPOSED`, confiança 0.71, 4% da imagem". Ela não diz "esta imagem é sensível". Isso é política, mora em YAML no consumidor, e pode ser lida e trocada sem tocar em código.
+**1. It returns measurement, never a verdict.** The library says *"a region labelled `BUTTOCKS_EXPOSED`, confidence 0.71, covering 4% of the image"*. It does not say *"this image is sensitive"*. That is policy — it lives in the consumer's YAML, and can be read, argued with and changed without touching code.
 
-**2. O portão vem antes do detector.** Se o portão veta uma imagem, nenhuma medida é calculada — não existe caminho no código em que o detector veja uma imagem vetada. A proteção é a ordem das operações, não um julgamento do modelo. Toda dúvida veta; sinal ausente veta; portão indisponível veta tudo.
+**2. The gate runs before the detector.** If the gate vetoes an image, no measurement is computed — there is no code path in which the detector sees a vetoed image. The protection is the order of operations, not a judgement made by the model. Every doubt vetoes; a missing signal vetoes; an unavailable gate vetoes everything.
 
-## Estado
+```python
+from anatomia import Evaluator, Gate
 
-Pré-medição. Nada aqui foi validado ainda — ver `EXPERIMENTO.md`, que define os números que decidem se treinar é necessário. O critério de aceitação está escrito **antes** de rodar, de propósito.
+ev = Evaluator(gate=Gate.from_config(cfg))
+measurement, candidate = ev.evaluate_and_judge(record)
+```
 
-## Licença
+`Measurement.evaluated` distinguishes *"the detector looked and found nothing"* from *"the detector never looked"*. Collapsing those two would make a gate-protected photo indistinguishable from a clean one, and the log would stop proving that the protection happened.
 
-AGPLv3. Pesos treinados, se houver, só com material sem pessoas identificáveis.
+## Status
+
+**Pre-measurement.** Nothing here has been validated yet. See `EXPERIMENTO.md`, which defines the numbers that decide whether training is necessary at all — with the acceptance criteria written *before* the experiment runs, deliberately.
+
+The project's thesis, that anatomy is fairer than colour, is a **measurable claim, not a theorem**. Geometry being invariant to pigment does not make the *model* invariant: NudeNet is a YOLO trained on web-collected images, and such detectors have documented uneven performance across skin tones. Experiment 2 measures exactly that, on content-matched pairs.
+
+## Language
+
+Code, API and one-line docstrings are in English. The longer design reasoning — the module headers and `EXPERIMENTO.md` — is in Brazilian Portuguese, where it was written and where it reads best.
+
+What you need in order to *integrate* is in English; what explains *why* is in Portuguese.
+
+## License
+
+AGPLv3. Any trained weights, if they ever exist, only from material without identifiable people.

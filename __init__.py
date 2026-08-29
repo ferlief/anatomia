@@ -1,23 +1,28 @@
 r"""
-anatomia - deteccao de conteudo sensivel por ESTRUTURA CORPORAL.
+anatomia - sensitive-content detection by BODY STRUCTURE, not skin tone.
 
-Projeto satelite do Acervo. Nao classifica pigmento: localiza anatomia.
-Nao decide: mede. Nao roda sobre foto de crianca: o portao veta antes.
+It does not classify pigment: it locates anatomy. It does not decide: it
+measures. It never runs on a photo of a child - the gate vetoes first.
 
-    from anatomia import Avaliador, Portao, Detector
+    from anatomia import Evaluator, Gate, Detector
 
-    av = Avaliador(portao=Portao.do_acervo(cfg))
-    medida, candidato = av.avaliar_e_julgar(registro)
+    ev = Evaluator(gate=Gate.from_config(cfg))
+    measurement, candidate = ev.evaluate_and_judge(record)
 
-'Detector' e' exportado para teste e para o experimento; em producao use
-sempre 'Avaliador', que poe o portao na frente. Ver avaliador.py.
+'Detector' is exported for testing and for the experiment; in production
+always use 'Evaluator', which puts the gate in front. See evaluator.py.
+
+Documentation note: one-line summaries are in English. The longer design
+reasoning, and EXPERIMENTO.md, are in Brazilian Portuguese - that is where
+the thinking happened, and translating it would cost more than it buys.
 """
 
-from .avaliador import POLITICA_PADRAO, Avaliador
 from .detector import Detector
-from .portao import LIMIAR_VETO_PADRAO, Portao
-from .tipos import Candidato, Medida, Regiao
+from .evaluator import DEFAULT_POLICY, Evaluator
+from .gate import DEFAULT_VETO_THRESHOLD, Gate
+from .types import Candidate, Measurement, NOT_EVALUATED, Region
 
-__all__ = ["Avaliador", "Portao", "Detector", "Medida", "Regiao", "Candidato",
-           "POLITICA_PADRAO", "LIMIAR_VETO_PADRAO"]
-__version__ = "0.1.0-desenho"
+__all__ = ["Evaluator", "Gate", "Detector",
+           "Measurement", "Region", "Candidate", "NOT_EVALUATED",
+           "DEFAULT_POLICY", "DEFAULT_VETO_THRESHOLD"]
+__version__ = "0.2.0-design"

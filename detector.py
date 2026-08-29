@@ -1,6 +1,9 @@
 r"""
-==========================================================================
- anatomia.detector - adaptador do NudeNet, reduzido a MEDIDA
+anatomia.detector - NudeNet adapter, reduced to MEASUREMENT.
+
+The one-line summaries below are in English, for anyone integrating this
+library. The longer reasoning is in Portuguese, where it was written.
+
 ==========================================================================
 
 PORQUE ANATOMIA E NAO COR
@@ -29,9 +32,9 @@ O QUE ISSO NAO COMPRA
 
 O QUE ESTE ADAPTADOR FAZ E NAO FAZ
 
-  FAZ  : chama o detector, normaliza a saida para Regiao, mede o tempo,
+  FAZ  : chama o detector, normaliza a saida para Region, mede o tempo,
          registra a versao do modelo em cada medida.
-  NAO  : nao decide, nao filtra por confianca, nao agrupa classe, nao
+  NAO  : nao decide, nao filtra por confianca, nao agrupa rotulo, nao
          traduz rotulo. Tudo isso e' politica e sobe para o YAML.
 
   Nao filtrar por confianca aqui e' o que torna a varredura de limiar
@@ -46,71 +49,73 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .tipos import Medida, Regiao
+from .types import Measurement, Region
 
 
 @dataclass
 class Detector:
-    """Envolve o NudeNet. Carrega sob demanda - o modulo importa sem ele."""
+    """Wraps NudeNet. Loads on demand - the module imports without it."""
 
     # 320n e' o padrao do NudeNet 3.4: onnxruntime, sem torch, roda em CPU
     # em dezenas de ms. Numa RTX 4050 de 6 GB o gargalo e' decodificar
     # JPEG, nao inferir - por isso a paralelizacao util e' de leitura.
-    modelo: str = "nudenet-320n"
+    model: str = "nudenet-320n"
     _d: object = field(default=None, repr=False)
 
-    def disponivel(self) -> bool:
+    def available(self) -> bool:
         try:
             import nudenet  # noqa: F401
             return True
         except ImportError:
             return False
 
-    def carregar(self):
+    def load(self):
         if self._d is None:
             from nudenet import NudeDetector
             self._d = NudeDetector()
         return self._d
 
-    def versao(self) -> str:
-        """Vai gravada em CADA medida. Sem isto, um numero medido hoje nao
-        e' comparavel com o de amanha, e a tabela do experimento vira
-        folclore."""
+    def version(self) -> str:
+        """Recorded in EVERY measurement.
+
+        Sem isto, um numero medido hoje nao e' comparavel com o de amanha,
+        e a tabela do experimento vira folclore."""
         try:
             import nudenet
             v = getattr(nudenet, "__version__", "?")
         except ImportError:
-            v = "ausente"
-        return f"{self.modelo}@nudenet-{v}"
+            v = "missing"
+        return f"{self.model}@nudenet-{v}"
 
-    # -- medida -----------------------------------------------------
-    def medir(self, fonte, dimensoes: tuple[int, int] | None = None) -> Medida:
-        """fonte: caminho, ndarray BGR ou PIL.Image.
+    # -- measurement ------------------------------------------------
+    def measure(self, source,
+                dimensions: tuple[int, int] | None = None) -> Measurement:
+        """source: path, BGR ndarray or PIL.Image.
 
-        'dimensoes' e' (largura, altura) da imagem como o detector a ve';
-        vem do indice do Acervo para nao reabrir o arquivo so' para saber
-        o tamanho. Sem ela, area_rel fica 0.0 e a politica que depende de
-        area nao dispara - falha fechada tambem aqui."""
-        if not self.disponivel():
-            return Medida(avaliado=False, motivo="detector_ausente")
+        'dimensions' e' (largura, altura) da imagem como o detector a ve';
+        vem do indice para nao reabrir o arquivo so' para saber o tamanho.
+        Sem ela, area_ratio fica 0.0 e a politica que depende de area nao
+        dispara - falha fechada tambem aqui."""
+        if not self.available():
+            return Measurement(evaluated=False, reason="detector_missing")
         t0 = time.perf_counter()
         try:
-            cru = self.carregar().detect(
-                str(fonte) if isinstance(fonte, (str, Path)) else fonte)
+            raw = self.load().detect(
+                str(source) if isinstance(source, (str, Path)) else source)
         except Exception as e:
-            return Medida(avaliado=False, motivo=f"erro_detector: {e}",
-                          versao_modelo=self.versao())
+            return Measurement(evaluated=False, reason=f"detector_error: {e}",
+                               model_version=self.version())
         ms = (time.perf_counter() - t0) * 1000.0
 
-        area = float(dimensoes[0] * dimensoes[1]) if dimensoes else 0.0
-        regioes = []
-        for d in cru or []:
+        area = float(dimensions[0] * dimensions[1]) if dimensions else 0.0
+        regions = []
+        for d in raw or []:
             x, y, w, h = (int(v) for v in d.get("box", (0, 0, 0, 0)))
-            regioes.append(Regiao(
-                classe=str(d.get("class", "?")),
-                confianca=float(d.get("score", 0.0)),
-                caixa=(x, y, w, h),
-                area_rel=(w * h / area) if area > 0 else 0.0))
-        return Medida(avaliado=True, motivo="medido",
-                      regioes=tuple(regioes),
-                      versao_modelo=self.versao(), ms=ms)
+            regions.append(Region(
+                label=str(d.get("class", "?")),
+                confidence=float(d.get("score", 0.0)),
+                box=(x, y, w, h),
+                area_ratio=(w * h / area) if area > 0 else 0.0))
+        return Measurement(evaluated=True, reason="measured",
+                           regions=tuple(regions),
+                           model_version=self.version(), ms=ms)

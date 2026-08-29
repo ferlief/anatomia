@@ -55,8 +55,8 @@ para o grupo.
 
 ### O que existe hoje
 
-`rostos.identificar: false`, `nunca_avaliar: []`, sem `referencias.pkl`.
-Pelo código de `Portao.do_acervo`, isso deixa o portão **indisponível**, e
+`faces.identify: false`, `never_evaluate: []`, sem `referencias.pkl`.
+Pelo código de `Gate.from_config`, isso deixa o portão **indisponível**, e
 portanto a categoria inteira desligada. Este experimento é o que a liga.
 
 ### Passos
@@ -66,7 +66,7 @@ portanto a categoria inteira desligada. Este experimento é o que a liga.
    cobrir a variação de idade**: um vetor de bebê de 3 meses não protege a
    foto da mesma criança aos 4 anos. Pastas por pessoa **e por faixa de
    idade**.
-2. Ligar `rostos.identificar` e reindexar para popular `sim_protegido`.
+2. Ligar `faces.identify` e reindexar para popular `protected_similarity`.
 3. Rotular à mão um conjunto de **crianças** — alvo: 400 imagens, incluindo
    de propósito os casos difíceis: de costas, de longe, rosto parcial,
    foto escaneada, foto de foto, grupo grande, baixa luz.
@@ -78,7 +78,7 @@ portanto a categoria inteira desligada. Este experimento é o que a liga.
   Este é o número de segurança do projeto inteiro.
 - **Custo do portão** = fração do acervo adulto que o portão veta
   desnecessariamente (mede se a categoria ainda serve para alguma coisa).
-- Tabela `padrão` × `estrito` nas duas colunas acima — a escolha do modo
+- Tabela `standard` x `strict` nas duas colunas acima — a escolha do modo
   sai daí, não de argumento.
 
 ### Quanto vale 400
@@ -93,11 +93,11 @@ metodologia e publicar propaganda.
 ### Mudança necessária no núcleo (para o modo estrito)
 
 Hoje `indexar()` guarda só o **máximo** das similaridades (`sim_in`,
-`sim_ex`, `sim_protegido`). O modo estrito precisa do **mínimo por
+`sim_ex`, `protected_similarity`). O modo estrito precisa do **mínimo por
 imagem**: "o rosto menos reconhecido desta foto ainda casa com alguém
 conhecido?".
 
-Sinal novo, em `CAMPOS`: `sim_min_conhecido` — para cada rosto, a melhor
+Sinal novo, em `CAMPOS`: `min_known_similarity` — para cada rosto, a melhor
 similaridade contra o conjunto de referências conhecidas; da imagem, o
 **menor** desses valores. `NULL` quando não há rosto. Sem esse campo, o
 modo estrito veta tudo (falha fechada, por desenho).
@@ -108,7 +108,7 @@ modo estrito veta tudo (falha fechada, por desenho).
 
 ### Passada completa, atrás do portão
 
-Rodar `Avaliador.avaliar` sobre o quadro inteiro. Gravar **as regiões
+Rodar `Evaluator.evaluate` sobre o quadro inteiro. Gravar **as regiões
 cruas**, sem filtro de confiança, em tabela lateral:
 
 ```sql
@@ -266,7 +266,7 @@ identificáveis, conforme a regra do projeto.
 
 ## 7. Como pluga no Acervo
 
-A costura que já existe (`politicas.sensivel: {ativa: false, via: modelo}`)
+A costura que já existe (`policies.sensitive: {ativa: false, via: modelo}`)
 ganha os campos do portão e da política de classes:
 
 ```yaml
@@ -274,13 +274,13 @@ politicas:
   sensivel:
     ativa: false            # segue desligada ate' o experimento 1 fechar
     via: modelo             # nunca 'cor'; a heuristica YCrCb foi descartada
-    modelo: anatomia        # biblioteca satelite, deteccao por estrutura
+    model: anatomia        # biblioteca satelite, deteccao por estrutura
 
     # ---- portao: protecao estrutural de crianca -------------------
-    # Exige rostos.identificar=true e rostos.nunca_avaliar preenchido.
+    # Exige faces.identify=true e faces.never_evaluate preenchido.
     # Faltando qualquer um, a categoria inteira fica desligada.
-    portao: padrao          # padrao | estrito
-    limiar_veto: 0.30       # ABAIXO de rostos.limiar_protecao, de proposito
+    gate: standard         # standard | strict
+    veto_threshold: 0.30       # ABAIXO de faces.protection_threshold, de proposito
 
     # ---- politica de classes: DECISAO NORMATIVA, declarada --------
     # Torso a mostra nao entra, em nenhum dos dois generos. Barriga, pes e
@@ -290,8 +290,8 @@ politicas:
       MALE_GENITALIA_EXPOSED: 0.50
       ANUS_EXPOSED: 0.50
       BUTTOCKS_EXPOSED: 0.60
-    area_minima: 0.002
-    classes_minimas: 1
+    min_area_ratio: 0.002
+    min_labels: 1
 
     # A saida e' sempre CANDIDATA a validacao humana.
     caixa: sensivel
@@ -310,14 +310,14 @@ if caixa is None:
 ```
 
 `classifica_sensivel` lê só sinais já persistidos e aplica
-`Avaliador.julgar` — função pura. O plano continua sendo função pura do
+`Evaluator.judge` — função pura. O plano continua sendo função pura do
 índice, e trocar a política no YAML não obriga a recalcular nada.
 
 ### O que precisa mudar no núcleo
 
-1. `CAMPOS` + `sim_min_conhecido` (modo estrito) — seção 2.
+1. `CAMPOS` + `min_known_similarity` (modo estrito) — seção 2.
 2. Tabela lateral `anatomia` — seção 3.
-3. Propagação de veto por grupo: `Portao.propaga_veto` aplicado sobre a
+3. Propagação de veto por grupo: `Gate.propagate_veto` aplicado sobre a
    saída de `agrupar()` antes de julgar. Sem isso a cópia borrada da mesma
    foto passa pelo portão que a cópia nítida vetou.
 4. `descreve_vies()` ganha a linha da categoria sensível: detector de
@@ -332,7 +332,7 @@ if caixa is None:
    → reindexar.
 2. Rotular o conjunto de crianças (400).
 3. **Experimento 0.** Se o recall do portão não fechar, para aqui.
-4. `sim_min_conhecido` no núcleo, se o modo estrito for o escolhido.
+4. `min_known_similarity` no núcleo, se o modo estrito for o escolhido.
 5. `pip install nudenet` → passada completa atrás do portão → tabela `anatomia`.
 6. Sortear os estratos, rotular às cegas, reteste de 10%.
 7. **Experimento 1.** Curvas, tabela de erros por classe, ponto de operação.
