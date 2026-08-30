@@ -75,12 +75,26 @@ from dataclasses import dataclass
 # existe para substitui-lo por um numero medido.
 DEFAULT_VETO_THRESHOLD = 0.30
 
+# Limiar de IDENTIFICACAO, usado SO' pelo modo estrito. Deliberadamente
+# mais ALTO que o de veto, e a razao e' que as duas perguntas sao opostas:
+#
+#   veto (0.30)          : "pode ser alguem protegido?" - duvida veta
+#   identificacao (0.55) : "este rosto E' de alguem conhecido?" - afirmacao
+#
+# Usar o limiar de veto aqui deixaria passar rosto com semelhanca 0.35,
+# que e' ruido e nao reconhecimento - e o modo estrito existe justamente
+# para vetar imagem com rosto que NAO se sabe de quem e'. Confundir os
+# dois torna o modo estrito mais frouxo que o texto promete.
+# TAMBEM NAO E' UM NUMERO MEDIDO: sai do experimento 0, como o outro.
+DEFAULT_IDENTIFICATION_THRESHOLD = 0.55
+
 
 @dataclass
 class Gate:
     """Decides whether an image MAY be measured. Never measures anything."""
 
     veto_threshold: float = DEFAULT_VETO_THRESHOLD
+    identification_threshold: float = DEFAULT_IDENTIFICATION_THRESHOLD
     mode: str = "standard"             # 'standard' | 'strict'
     available: bool = False            # falha fechada ate' prova em contrario
     unavailable_reason: str = "gate_not_configured"
@@ -103,6 +117,9 @@ class Gate:
         g = cls(veto_threshold=float(
                     cfg.get("policies.sensitive.veto_threshold",
                             DEFAULT_VETO_THRESHOLD)),
+                identification_threshold=float(
+                    cfg.get("policies.sensitive.identification_threshold",
+                            DEFAULT_IDENTIFICATION_THRESHOLD)),
                 mode=str(cfg.get("policies.sensitive.gate", "standard")))
         protected = list(cfg.get("faces.never_evaluate", []) or [])
         if not cfg.get("faces.enabled", True):
@@ -153,7 +170,9 @@ class Gate:
             worst = rec.get("min_known_similarity")
             if worst is None:
                 return False, "strict_mode_missing_signal"
-            if float(worst) < self.veto_threshold:
+            # Contra o limiar de IDENTIFICACAO, nao o de veto - ver o
+            # comentario de DEFAULT_IDENTIFICATION_THRESHOLD.
+            if float(worst) < self.identification_threshold:
                 return False, "unidentified_face"
 
         return True, "allowed"

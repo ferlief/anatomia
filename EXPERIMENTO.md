@@ -111,17 +111,24 @@ modo estrito veta tudo (falha fechada, por desenho).
 Rodar `Evaluator.evaluate` sobre o quadro inteiro. Gravar **as regiões
 cruas**, sem filtro de confiança, em tabela lateral:
 
+As colunas seguem os nomes que `Measurement.as_dict()` emite — se
+divergirem, o `INSERT` não casa com nenhuma chave do dicionário:
+
 ```sql
 CREATE TABLE anatomia (
   path TEXT PRIMARY KEY,
-  avaliado INTEGER NOT NULL,
-  motivo TEXT NOT NULL,          -- 'medido' ou o veto do portão
-  versao_modelo TEXT,
-  regioes TEXT,                  -- JSON: [{classe, confianca, caixa, area_rel}]
-  conf_max REAL,                 -- desnormalizado, só para estratificar
+  evaluated INTEGER NOT NULL,
+  reason TEXT NOT NULL,          -- 'measured' ou o motivo do veto
+  model_version TEXT,
+  regions TEXT,                  -- JSON: [{label, confidence, box, area_ratio}]
+  ms REAL,                       -- tempo de inferência, para orçamento
+  max_confidence REAL,           -- desnormalizado, só para estratificar
   medido_em REAL
 );
 ```
+
+`max_confidence` não vem do `as_dict()` — é a propriedade de mesmo nome,
+calculada na hora da escrita. Todas as outras são cópia direta.
 
 Gravar cru é o que torna "limiar não se chuta" praticável: varrer cem
 políticas depois vira cem `SELECT`, não cem passadas de GPU. O custo é
@@ -266,35 +273,49 @@ identificáveis, conforme a regra do projeto.
 
 ## 7. Como pluga no Acervo
 
-A costura que já existe (`policies.sensitive: {ativa: false, via: modelo}`)
-ganha os campos do portão e da política de classes:
+As chaves abaixo são **exatamente** as que `Gate.from_config` e
+`Evaluator.judge` leem. Copiar este bloco trocando um nome produz um
+portão indisponível sem mensagem de erro:
 
 ```yaml
-politicas:
-  sensivel:
-    ativa: false            # segue desligada ate' o experimento 1 fechar
-    via: modelo             # nunca 'cor'; a heuristica YCrCb foi descartada
-    model: anatomia        # biblioteca satelite, deteccao por estrutura
+policies:
+  sensitive:
+    enabled: false          # segue desligada ate' o experimento 1 fechar
+    via: model              # nunca 'cor'; a heuristica YCrCb foi descartada
+    model: anatomia         # biblioteca satelite, deteccao por estrutura
 
     # ---- portao: protecao estrutural de crianca -------------------
     # Exige faces.identify=true e faces.never_evaluate preenchido.
     # Faltando qualquer um, a categoria inteira fica desligada.
-    gate: standard         # standard | strict
-    veto_threshold: 0.30       # ABAIXO de faces.protection_threshold, de proposito
+    gate: standard          # standard | strict
+    veto_threshold: 0.30    # ABAIXO de faces.protection_threshold, de proposito
+    identification_threshold: 0.55   # so' o modo strict usa; ACIMA do veto
 
-    # ---- politica de classes: DECISAO NORMATIVA, declarada --------
+    # ---- politica de rotulos: DECISAO NORMATIVA, declarada --------
     # Torso a mostra nao entra, em nenhum dos dois generos. Barriga, pes e
-    # axilas sao praia e verao. Classe de genero por aparencia nunca entra.
-    classes:
+    # axilas sao praia e verao. Rotulo de genero por aparencia nunca entra.
+    labels:
       FEMALE_GENITALIA_EXPOSED: 0.50
       MALE_GENITALIA_EXPOSED: 0.50
       ANUS_EXPOSED: 0.50
       BUTTOCKS_EXPOSED: 0.60
+
+    # A lista abaixo e' onde a decisao normativa fica VISIVEL. Sem ela,
+    # o julgamento existe so' no codigo e ninguem o discute.
+    ignored_labels:
+      - FEMALE_BREAST_EXPOSED
+      - MALE_BREAST_EXPOSED
+      - BELLY_EXPOSED
+      - FEET_EXPOSED
+      - ARMPITS_EXPOSED
+      - FACE_FEMALE          # genero por aparencia: nunca
+      - FACE_MALE
+
     min_area_ratio: 0.002
     min_labels: 1
 
     # A saida e' sempre CANDIDATA a validacao humana.
-    caixa: sensivel
+    box: sensitive
 ```
 
 ### Onde entra no motor
