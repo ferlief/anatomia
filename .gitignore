@@ -11,3 +11,6 @@ Thumbs.db
 .vscode/
 /dados/
 /saida/
+
+# contexto local de trabalho, nao versionado
+CLAUDE.md
