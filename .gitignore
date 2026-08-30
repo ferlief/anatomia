@@ -14,3 +14,40 @@ Thumbs.db
 
 # contexto local de trabalho, nao versionado
 CLAUDE.md
+
+# --- dados que nunca sobem ---------------------------------------
+# Modelos e vetores. refs.pkl contem embeddings faciais: dado
+# biometrico. Versionar um destes e' irreversivel.
+*.pkl
+*.pt
+*.pth
+*.onnx
+*.npy
+*.npz
+*.safetensors
+
+# Imagem e video: o acervo e' de pessoas reais.
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tif
+*.tiff
+*.webp
+*.heic
+*.nef
+*.cr2
+*.raw
+*.mp4
+*.mov
+*.avi
+
+# Config real (com caminhos e nomes de pessoas). O exemplo sobe.
+config.yaml
+!config.example.yaml
+
+# Dados tabulares exportados do indice
+*.csv
+*.tsv
+*.parquet
