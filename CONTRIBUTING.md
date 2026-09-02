@@ -1,21 +1,19 @@
 # Contribuindo com anatomia
 
-## Idioma dos commits
+## Mensagens de commit
 
-Mesma divisão que já vale para identificador e docstring (ver `CLAUDE.md`): **inglês para o que integra, português para o que explica.**
+**Inglês, sempre — [Conventional Commits](https://www.conventionalcommits.org/), modo imperativo.** Não é sobre quem lê este repositório; é o padrão de quem programa de forma séria hoje, com ou sem audiência externa. Vale a partir de agora — histórico anterior (que misturava inglês e português) fica como está.
 
-- Commit que muda **API pública, identificador, comportamento observável por quem consome a biblioteca**: mensagem em **inglês**.
-  Exemplo real: `rename public API to English; keep design reasoning in Portuguese`.
-- Commit sobre **raciocínio interno — `EXPERIMENTO.md`, cabeçalho de módulo, decisão de projeto**: mensagem em **português**.
-  Exemplo real: `deteccao de conteudo sensivel por anatomia, nao por cor de pele`.
+```
+<type>(<scope>): short imperative summary, ≤50 chars
 
-Não é regra nova, é a mesma regra de sempre estendida até o histórico do git. Na dúvida: se a mudança aparece pra quem só consome `anatomia` de fora, é inglês; se só aparece pra quem lê o design por dentro, é português.
+Body explaining WHY this change exists, not what changed — the diff
+already shows what. Wrap at ~72 columns.
+```
 
-## Formato
+Tipos comuns: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `build`, `ci`. Escopo é opcional — use quando desambiguar (`fix(gate): ...`).
 
-- Modo imperativo, foco no **porquê** da mudança — o diff já mostra o quê.
-- Sem prefixo obrigatório (`feat:`, `fix:`); mensagem descritiva de uma linha é o padrão já estabelecido no histórico.
-- Sem linha de atribuição a ferramenta de geração de código.
+Referências: [conventionalcommits.org](https://www.conventionalcommits.org/) para o formato, as 7 regras de Chris Beams ("How to Write a Git Commit Message") para a prosa. Sem linha de atribuição a ferramenta de geração de código.
 
 ## Antes de abrir um PR
 
