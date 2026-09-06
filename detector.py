@@ -56,9 +56,9 @@ from .types import Measurement, Region
 class Detector:
     """Wraps NudeNet. Loads on demand - the module imports without it."""
 
-    # 320n e' o padrao do NudeNet 3.4: onnxruntime, sem torch, roda em CPU
-    # em dezenas de ms. Numa RTX 4050 de 6 GB o gargalo e' decodificar
-    # JPEG, nao inferir - por isso a paralelizacao util e' de leitura.
+    # 320n is NudeNet 3.4's default: onnxruntime, no torch, runs on CPU
+    # in tens of ms. On a 6 GB RTX 4050 the bottleneck is decoding
+    # JPEG, not inference - so the parallelism that pays off is on reads.
     model: str = "nudenet-320n"
     _d: object = field(default=None, repr=False)
 
