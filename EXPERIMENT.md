@@ -1,36 +1,27 @@
-# Experimento de medição — anatomia sobre o acervo
+# Measurement experiment — anatomia on data
 
-Nada aqui treina nada. O objetivo é produzir os números que decidem se
-treinar é necessário.
-
----
-
-## 0. A ordem, e por que ela é essa
-
-O portão vem antes do detector **também na avaliação**. Não é escrúpulo
-decorativo: se a avaliação rodasse o detector sobre todas as fotos de
-criança para "medir a taxa de falso positivo em criança", ela faria
-exatamente o que o sistema promete nunca fazer, e o número medido seria de
-um pipeline que não é o de produção.
-
-A pergunta certa não é *"o detector marca foto de criança?"* e sim:
-
-> **Quantas fotos de criança o portão deixa passar, e o que o detector faz
-> com essas?**
-
-Isso é *risco residual*, e mede-se rodando o detector **só sobre as fotos
-que o portão liberou** — ou seja, só sobre o que produção já veria. A
-avaliação não faz nada que produção não faça.
-
-Consequência prática: o experimento 0 (portão) bloqueia o experimento 1
-(detector). Não dá para inverter.
+Nothing here trains anything. The goal is to produce the numbers that decide whether training is necessary.
 
 ---
 
-## 1. Quadro amostral
+## 0. The order, and why
 
-Antes de amostrar, resolver uma inconsistência: os índices no diretório
-não batem com 294.530 imagens.
+The gate comes before the detector **also in the evaluation**. It is not a decorative scruple: if the evaluation ran the detector on all children's photos to "measure the false positive rate on children," it would do exactly what the system promises never to do, and the measured number would be from a pipeline that isn't the production one.
+
+The right question isn't *"does the detector flag children's photos?"* but rather:
+
+>**How many children's photos does the gate let through, and what does the detector do with >them?**
+
+*This is residual risk*, and it is measured by running the detector **only on the photos the gate let through** — that is, only on what production would already see. The evaluation does nothing that production doesn't do.
+
+Practical consequence: experiment 0 (gate) blocks experiment 1 (detector). You cannot invert them.
+
+---
+
+## 1. Sampling Frame
+
+Before sampling, resolve an inconsistency: the directory indices don't match 294,530 images.
+
 
 | índice | linhas |
 |---|---|
@@ -38,46 +29,42 @@ não batem com 294.530 imagens.
 | `dedup_index_fase5.sqlite3` | 194.290 |
 | `dedup_index.sqlite3` | 91.542 |
 
-O quadro precisa ser **um** índice, com caminho + `sha256` + `phash` +
-`width/height` + sinais de rosto, e é dele que sai toda amostra. Se os
-294.530 são a união de fases, a união precisa ser materializada numa
-tabela antes de qualquer sorteio — senão as probabilidades de inclusão
-ficam desconhecidas e nenhuma estimativa de recall é válida.
+The frame needs to be **one** index, with path + `sha256` + `phash` + face signals, and every sample must come from it. If the 294,530 are the union of phases, the union needs to be materialized in a table before any drawing — otherwise the inclusion probabilities remain unknown and no recall estimate is valid.
 
-**Deduplicação do quadro**: sortear sobre arquivos, não sobre imagens,
-enviesa a amostra na direção do que foi copiado mais vezes. Sortear sobre
-grupos de `phash` (um representante por grupo) e depois propagar o rótulo
-para o grupo.
+**Frame deduplication**: drawing over files, not images, biases the 
+sample toward what was copied the most. Draw over `phash` groups 
+(one representative per group) and then propagate the label to the group.
 
 ---
 
-## 2. Experimento 0 — o portão (bloqueia todo o resto)
+## 2. Experiment 0 — the gate (blocks everything else)
 
-### O que existe hoje
+### What exists today
 
-`faces.identify: false`, `never_evaluate: []`, sem `referencias.pkl`.
-Pelo código de `Gate.from_config`, isso deixa o portão **indisponível**, e
-portanto a categoria inteira desligada. Este experimento é o que a liga.
+`faces.identify: false`, `never_evaluate: []`, without `referencias.pkl`.
+By the `Gate.from_config`, code, this makes the gate **unavailable**, 
+and therefore the entire category turned off. This experiment is what 
+turns it on.
 
-### Passos
+### Steps
 
-1. Montar pastas de referência para as pessoas protegidas (filha,
-   enteada) e para os adultos da família. **Referência de criança precisa
-   cobrir a variação de idade**: um vetor de bebê de 3 meses não protege a
-   foto da mesma criança aos 4 anos. Pastas por pessoa **e por faixa de
-   idade**.
-2. Ligar `faces.identify` e reindexar para popular `protected_similarity`.
-3. Rotular à mão um conjunto de **crianças** — alvo: 400 imagens, incluindo
-   de propósito os casos difíceis: de costas, de longe, rosto parcial,
-   foto escaneada, foto de foto, grupo grande, baixa luz.
-4. Rodar **só o portão** sobre esse conjunto, nos dois modos.
+1. Set up reference folders for protected people (daughter, stepdaughter)
+and for the adults in the family. **Child references need to cover age 
+variation**: a 3-month-old baby vector does not protect the photo of the
+same child at 4 years old. Folders per person 
+**and by age group**.
+2. Turn on `faces.identify` and reindex to populate `protected_similarity`.
+3. Hand-label a set of **children** — target: 400 images, intentionally 
+including hard cases: from the back, from a distance, partial face, 
+scanned photo, photo of a photo, large group, low light.
+4. Run **only the gate** on this set, in both modes.
 
-### Números que saem
+### Resulting metrics
 
-- **Recall do portão** = fração das fotos de criança que o portão veta.
-  Este é o número de segurança do projeto inteiro.
-- **Custo do portão** = fração do acervo adulto que o portão veta
-  desnecessariamente (mede se a categoria ainda serve para alguma coisa).
+- **Gate recall** = fraction of children's photos that the gate vetoes. 
+  This is the safety number for the entire project.
+- **Gate cost** = fraction of the adult archive that the gate vetoes 
+  unnecessarily (measures if the category is still useful for anything).
 - Tabela `standard` x `strict` nas duas colunas acima — a escolha do modo
   sai daí, não de argumento.
 
